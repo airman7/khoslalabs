@@ -21,8 +21,8 @@ public class TemperatureData {
                 + "°C. " + humidity + "% humid";
     }
 
-    public Double getTemp() {
-        return temp;
+    public String getTemp() {
+        return Utility.convertToCelcius(temp).toString();
     }
 
     public void setTemp(Double temp) {
