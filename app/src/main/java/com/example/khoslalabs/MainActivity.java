@@ -9,8 +9,9 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.util.Log;
+import android.text.format.DateFormat;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -20,16 +21,20 @@ import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
+import com.example.models.ForecastData;
 import com.example.models.WeatherData;
+import com.example.network.SingletonRequestQueue;
 import com.example.util.Utility;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import java.util.Calendar;
+import java.util.Locale;
+
 public class MainActivity extends Activity implements LocationListener {
 
     LocationManager locationManager;
-    TextView currentTemp, extraDetails;
+    TextView currentTemp, extraDetails,day1,day2,day3,day4,day5;
     Double latitude, longitude;
     int PERMISSION_ACCESS_FINE_LOCATION = 14;
 
@@ -39,7 +44,12 @@ public class MainActivity extends Activity implements LocationListener {
         setContentView(R.layout.activity_main);
 
         currentTemp = findViewById(R.id.currentTemp);
-        extraDetails = findViewById(R.id.extra) ;
+        extraDetails = findViewById(R.id.extra);
+        day1 = findViewById(R.id.day1);
+        day2 = findViewById(R.id.day2);
+        day3 = findViewById(R.id.day3);
+        day4 = findViewById(R.id.day4);
+        day5 = findViewById(R.id.day5);
 
         // Instantiate the location service
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -56,15 +66,15 @@ public class MainActivity extends Activity implements LocationListener {
 
     public void requestAndSetWeather(){
         // Instantiate the RequestQueue.
-        final RequestQueue queue = Volley.newRequestQueue(this);
-        final String url = String.format(Utility.weatherURL, latitude, longitude, Utility.weatherAPIKey);
+        final String weatherUrl = String.format(Utility.weatherURL, latitude, longitude, Utility.weatherAPIKey);
+        final String forecastUrl = String.format(Utility.weatherForecastURL, latitude, longitude, Utility.weatherAPIKey);
+        RequestQueue queue = SingletonRequestQueue.getInstance(getApplicationContext()).getRequestQueue();
 
         // Request a string response from the provided URL.
-        StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
+        StringRequest weatherRequest = new StringRequest(Request.Method.GET, weatherUrl,
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        Log.d("response:", response);
                         GsonBuilder builder = new GsonBuilder();
                         Gson mGson = builder.create();
                         WeatherData data = mGson.fromJson(response, WeatherData.class);
@@ -75,12 +85,36 @@ public class MainActivity extends Activity implements LocationListener {
                 }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
-                currentTemp.setText("That didn't work!");
+                Toast.makeText(getApplicationContext(), "Some error occurred. Please try later.",Toast.LENGTH_LONG);
+            }
+        });
+
+
+        // Request a string response from the provided URL.
+        StringRequest forecastRequest = new StringRequest(Request.Method.GET, forecastUrl,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        GsonBuilder builder = new GsonBuilder();
+                        Gson mGson = builder.create();
+                        ForecastData forecastData = mGson.fromJson(response, ForecastData.class);
+
+                        day1.setText(getDate(forecastData.getForecast().get(6).getDate()) + " : " + forecastData.getForecast().get(6).getTemperatureData().getTemp()+"°C");
+                        day2.setText(getDate(forecastData.getForecast().get(14).getDate()) + " : " + forecastData.getForecast().get(14).getTemperatureData().getTemp()+"°C");
+                        day3.setText(getDate(forecastData.getForecast().get(22).getDate()) + " : " + forecastData.getForecast().get(22).getTemperatureData().getTemp()+"°C");
+                        day4.setText(getDate(forecastData.getForecast().get(30).getDate()) + " : " + forecastData.getForecast().get(30).getTemperatureData().getTemp()+"°C");
+                        day5.setText(getDate(forecastData.getForecast().get(38).getDate()) + " : " + forecastData.getForecast().get(38).getTemperatureData().getTemp()+"°C");
+                    }
+                }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Toast.makeText(getApplicationContext(), "Some error occurred. Please try later.",Toast.LENGTH_LONG);
             }
         });
 
         // Add the request to the RequestQueue.
-        queue.add(stringRequest);
+        queue.add(weatherRequest);
+        queue.add(forecastRequest);
     }
 
     public Criteria setupCriteria(){
@@ -94,6 +128,13 @@ public class MainActivity extends Activity implements LocationListener {
         criteria.setHorizontalAccuracy(Criteria.ACCURACY_HIGH);
         criteria.setVerticalAccuracy(Criteria.ACCURACY_HIGH);
         return criteria;
+    }
+
+    public String getDate(long time) {
+        Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+        cal.setTimeInMillis(time * 1000);
+        String date = DateFormat.format("dd MMM", cal).toString();
+        return date;
     }
 
     @Override
